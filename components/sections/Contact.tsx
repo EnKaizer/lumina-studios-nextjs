@@ -5,17 +5,15 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, Mail, Clock } from "lucide-react";
 import { toast } from "sonner";
-// Removed tRPC import
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome é obrigatório"),
-  company: z.string().min(2, "Empresa é obrigatória"),
-  contact: z.string().min(5, "Email ou WhatsApp inválido"),
-  type: z.string().min(1, "Selecione um tipo"),
-  objective: z.string().min(1, "Selecione um objetivo"),
-  message: z.string().optional(),
+  email: z.string().email("Email inválido"),
+  phone: z.string().optional(),
+  company: z.string().optional(),
+  message: z.string().min(10, "Mensagem deve ter pelo menos 10 caracteres"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -32,27 +30,26 @@ export function Contact() {
     setIsSubmitting(true);
     
     try {
-      // Submit lead to backend via REST API
-      const response = await fetch('/api/leads', {
+      const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: data.contact,
-          source: "contact_form",
-        }),
+        body: JSON.stringify(data),
       });
       
-      if (!response.ok) throw new Error('Failed to submit lead');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit contact');
+      }
       
       setIsSubmitting(false);
       setIsSuccess(true);
-      toast.success("Mensagem enviada com sucesso!");
+      toast.success("Mensagem enviada com sucesso! Você receberá um email de confirmação.");
       reset();
       
-      // Reset success state after 5 seconds
-      setTimeout(() => setIsSuccess(false), 5000);
+      // Reset success state after 8 seconds
+      setTimeout(() => setIsSuccess(false), 8000);
     } catch (error) {
-      console.error("Failed to submit lead:", error);
+      console.error("Failed to submit contact:", error);
       setIsSubmitting(false);
       toast.error("Erro ao enviar mensagem. Tente novamente.");
     }
@@ -74,28 +71,83 @@ export function Contact() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center py-20 text-center"
+              className="flex flex-col items-center justify-center py-16 text-center relative"
             >
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle className="w-10 h-10 text-green-500" />
-              </div>
-              <h3 className="text-3xl font-bold text-white mb-4">Mensagem Recebida!</h3>
-              <p className="text-muted-foreground max-w-md">
-                Nossa equipe analisará seu perfil e entrará em contato em breve com uma proposta personalizada.
-              </p>
-              <CyberButton 
-                variant="outline" 
-                className="mt-8"
-                onClick={() => setIsSuccess(false)}
+              {/* Animated background glow */}
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1.5, opacity: 0.3 }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="absolute inset-0 bg-gradient-to-r from-green-500/20 via-primary/20 to-green-500/20 blur-3xl"
+              />
+              
+              {/* Success icon with animation */}
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
+                className="relative z-10 w-32 h-32 bg-gradient-to-br from-green-500/30 to-green-600/30 rounded-full flex items-center justify-center mb-8 border-4 border-green-500/50 shadow-2xl shadow-green-500/50"
               >
-                Enviar outra mensagem
-              </CyberButton>
+                <CheckCircle className="w-16 h-16 text-green-500" strokeWidth={2.5} />
+              </motion.div>
+              
+              {/* Success message */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="relative z-10"
+              >
+                <h3 className="text-4xl font-bold text-white mb-4">Mensagem Enviada!</h3>
+                <p className="text-muted-foreground text-lg max-w-md mb-8">
+                  Você receberá um <strong className="text-primary">email de confirmação</strong> em instantes.
+                  <br />
+                  Nossa equipe retornará em <strong className="text-primary">24 a 48 horas</strong>.
+                </p>
+              </motion.div>
+
+              {/* Info cards */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg relative z-10"
+              >
+                <div className="bg-black/40 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                  <div className="text-left">
+                    <h4 className="font-semibold text-white text-sm mb-1">Email de Confirmação</h4>
+                    <p className="text-xs text-muted-foreground">Verifique sua caixa de entrada</p>
+                  </div>
+                </div>
+                <div className="bg-black/40 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
+                  <Clock className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                  <div className="text-left">
+                    <h4 className="font-semibold text-white text-sm mb-1">Em Análise</h4>
+                    <p className="text-xs text-muted-foreground">Resposta em até 48h</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="relative z-10 mt-8"
+              >
+                <CyberButton 
+                  variant="outline" 
+                  onClick={() => setIsSuccess(false)}
+                >
+                  ENVIAR OUTRA MENSAGEM
+                </CyberButton>
+              </motion.div>
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 relative z-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">Nome</label>
+                  <label className="text-sm font-medium text-white">Nome *</label>
                   <input
                     {...register("name")}
                     className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
@@ -111,60 +163,41 @@ export function Contact() {
                     className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                     placeholder="Nome da sua empresa"
                   />
-                  {errors.company && <span className="text-xs text-red-500">{errors.company.message}</span>}
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-white">WhatsApp ou E-mail</label>
-                <input
-                  {...register("contact")}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                  placeholder="Como podemos te contatar?"
-                />
-                {errors.contact && <span className="text-xs text-red-500">{errors.contact.message}</span>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">Tipo de Negócio</label>
-                  <select
-                    {...register("type")}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all appearance-none"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Evento">Evento</option>
-                    <option value="Varejo">Varejo</option>
-                    <option value="Imobiliária">Imobiliária</option>
-                    <option value="Outro">Outro</option>
-                  </select>
-                  {errors.type && <span className="text-xs text-red-500">{errors.type.message}</span>}
+                  <label className="text-sm font-medium text-white">E-mail *</label>
+                  <input
+                    {...register("email")}
+                    type="email"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                    placeholder="seu@email.com"
+                  />
+                  {errors.email && <span className="text-xs text-red-500">{errors.email.message}</span>}
                 </div>
-                
+
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">Objetivo Principal</label>
-                  <select
-                    {...register("objective")}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all appearance-none"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Leads">Captura de Leads</option>
-                    <option value="Vendas">Aumento de Vendas</option>
-                    <option value="Fluxo">Fluxo em Loja/Stand</option>
-                    <option value="Branding">Branding / Awareness</option>
-                  </select>
-                  {errors.objective && <span className="text-xs text-red-500">{errors.objective.message}</span>}
+                  <label className="text-sm font-medium text-white">WhatsApp</label>
+                  <input
+                    {...register("phone")}
+                    type="tel"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                    placeholder="(11) 99999-9999"
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-white">Mensagem (Opcional)</label>
+                <label className="text-sm font-medium text-white">Mensagem *</label>
                 <textarea
                   {...register("message")}
                   rows={4}
                   className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
                   placeholder="Conte mais sobre seu projeto..."
                 />
+                {errors.message && <span className="text-xs text-red-500">{errors.message.message}</span>}
               </div>
 
               <CyberButton 
@@ -176,10 +209,10 @@ export function Contact() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
+                    ENVIANDO...
                   </>
                 ) : (
-                  "Solicitar Proposta"
+                  "SOLICITAR PROPOSTA"
                 )}
               </CyberButton>
             </form>
