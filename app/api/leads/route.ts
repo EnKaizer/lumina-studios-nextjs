@@ -4,7 +4,7 @@ import sql from '@/lib/db/connection';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, source, score } = body;
+    const { email, name, score } = body;
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
@@ -22,9 +22,23 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-      INSERT INTO leads (email, source, score, "createdAt")
-      VALUES (${email}, ${source || null}, ${score || null}, NOW())
-      RETURNING id, email, source, score, "createdAt"
+      INSERT INTO leads (
+        name, 
+        email, 
+        score, 
+        completed, 
+        created_at, 
+        updated_at
+      )
+      VALUES (
+        ${name || 'Anônimo'}, 
+        ${email}, 
+        ${score || 0}, 
+        true, 
+        NOW(), 
+        NOW()
+      )
+      RETURNING id, name, email, score, created_at
     `;
 
     return NextResponse.json({
